@@ -1,11 +1,12 @@
 package mx.karlo.kym.ui.screen
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -24,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -32,7 +34,6 @@ import androidx.navigation.compose.rememberNavController
 import mx.karlo.kym.data.local.repository.ExerciseRepository
 import mx.karlo.kym.data.local.repository.RoutineRepository
 import mx.karlo.kym.ui.theme.CatppuccinTheme
-import mx.karlo.kym.ui.theme.MacchiatoMauve
 import mx.karlo.kym.ui.view.ExercisesView
 import mx.karlo.kym.ui.view.InsightsView
 import mx.karlo.kym.ui.view.RoutinesView
@@ -43,9 +44,24 @@ private enum class View(
     val icon: ImageVector,
     val contentDescription: String,
 ) {
-    ROUTINES ("routinesView", "Routines", Icons.Filled.Menu, "Routines"),
-    EXERCISES("exercisesView", "Exercises", Icons.Filled.FitnessCenter, "Exercises"),
-    INSIGHTS ("insightsView", "Insights", Icons.Filled.Insights, "Insights"),
+    ROUTINES(
+        route = "routinesView",
+        label = "Routines",
+        icon = Icons.AutoMirrored.Filled.List,
+        contentDescription = "Routines"
+    ),
+    EXERCISES(
+        route = "exercisesView",
+        label = "Exercises",
+        icon = Icons.Filled.FitnessCenter,
+        contentDescription = "Exercises"
+    ),
+    INSIGHTS(
+        route = "insightsView",
+        label = "Insights",
+        icon = Icons.Filled.Insights,
+        contentDescription = "Insights"
+    ),
 }
 
 @Composable
@@ -60,10 +76,13 @@ fun HomeScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    val views = View.entries
+    val currentIndex = views.indexOfFirst { it.route == currentRoute }
+
     CatppuccinTheme {
         Scaffold (
 
-            topBar = { TopBar() },
+            topBar = { TopBar(currentRoute) },
 
             bottomBar = {
                 BottomBar(navController, currentRoute)
@@ -77,7 +96,38 @@ fun HomeScreen(
             NavHost(
                 navController = navController,
                 startDestination = startView.route,
-                modifier = Modifier.padding(paddingValues)
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .pointerInput(currentRoute) {
+                        detectHorizontalDragGestures { _, dragAmount ->
+
+                            if (dragAmount < -25) {
+                                val nextIndex = currentIndex + 1
+                                if (nextIndex < views.size) {
+                                    navController.navigate(views[nextIndex].route) {
+                                        popUpTo(navController.graph.startDestinationId) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+
+                            if (dragAmount > 25) {
+                                val prevIndex = currentIndex - 1
+                                if (prevIndex >= 0) {
+                                    navController.navigate(views[prevIndex].route) {
+                                        popUpTo(navController.graph.startDestinationId) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+
+                                    }
+
+                                }
+                            }
+                        }
+                    }
             ) {
 
                 composable(View.ROUTINES.route)  {
@@ -94,7 +144,9 @@ fun HomeScreen(
                     )
                 }
 
-                composable(View.INSIGHTS.route)  { InsightsView() }
+                composable(View.INSIGHTS.route)  {
+                    InsightsView()
+                }
             }
         }
     }
@@ -102,7 +154,7 @@ fun HomeScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TopBar() {
+private fun TopBar(currentRoute: String?) {
     TopAppBar(
 
         colors = TopAppBarColors(
@@ -114,7 +166,13 @@ private fun TopBar() {
             subtitleContentColor = Color.Transparent
         ),
 
-        title = { Text("") },
+        title = {
+            when(currentRoute) {
+                View.ROUTINES.route -> { Text("Routines") }
+                View.EXERCISES.route -> { Text("Exercises") }
+                View.INSIGHTS.route -> { Text("Insights") }
+            }
+        },
 
         actions = {
             IconButton(
@@ -155,10 +213,9 @@ private fun BottomBar(navController: NavHostController, currentRoute: String?) {
                     )
                 },
 
-                label = { Text(view.label) },
                 alwaysShowLabel = false,
                 colors = NavigationBarItemDefaults.colors(
-                    selectedTextColor = MacchiatoMauve
+                    selectedTextColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -177,7 +234,7 @@ private fun Fab(navController: NavHostController, currentRoute: String?) {
             ) {
                 Icon(
                     Icons.Filled.Add,
-                    "add a routine"
+                    "Create a routine"
                 )
             }
         }
@@ -189,7 +246,7 @@ private fun Fab(navController: NavHostController, currentRoute: String?) {
             ) {
                 Icon(
                     Icons.Filled.Add,
-                    "add a exercise"
+                    "Create a exercise"
                 )
             }
         }
