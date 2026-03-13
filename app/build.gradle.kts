@@ -46,6 +46,8 @@ android {
 dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.compose.animation.core)
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.reorderable)

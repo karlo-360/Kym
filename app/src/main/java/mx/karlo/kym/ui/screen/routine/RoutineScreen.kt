@@ -1,28 +1,26 @@
 package mx.karlo.kym.ui.screen.routine
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -44,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
+import mx.karlo.kym.ui.components.ExerciseCard
 import mx.karlo.kym.ui.components.ItemCounter
 import mx.karlo.kym.ui.components.ItemsList
 import mx.karlo.kym.ui.components.RoutineExercisesList
@@ -53,6 +52,7 @@ import mx.karlo.kym.ui.viewmodel.exercise.ExerciseViewModel
 import mx.karlo.kym.ui.viewmodel.routine.RoutineViewModel
 import mx.karlo.kym.ui.viewmodel.routineExercise.RoutineExerciseViewModel
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import java.text.DecimalFormat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,6 +107,8 @@ fun RoutineScreen(
 
     //state of reorderable button
     var isReorderable by remember { mutableStateOf(false) }
+    //state of edit sets button
+    var isEditing by remember { mutableStateOf(false) }
 
 
     CatppuccinTheme {
@@ -114,8 +116,16 @@ fun RoutineScreen(
             topBar = {
                 TopBar(
                     name = routine?.name ?: "Nameless",
-                    selected = isReorderable,
-                    onButtonToggle = {isReorderable = it}
+                    reorderSelected = isReorderable,
+                    onReorderToggle = {
+                        isReorderable = it
+                        isEditing = false
+                    },
+                    editSelected = isEditing,
+                    onEditToggle = {
+                        isEditing = it
+                        isReorderable = false
+                    }
                 )
             },
             floatingActionButton = {
@@ -155,98 +165,67 @@ fun RoutineScreen(
                         reorderableLazyListState = state,
                     ) { exercise, isDragging ->
 
-                        val elevation by animateDpAsState(
-                            targetValue = if (isDragging) 8.dp else 0.dp,
-                            label = "cardElevation"
-                        )
-                        Card(
-                            elevation = CardDefaults.cardElevation(
-                                defaultElevation = elevation,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(all = 8.dp),
-                            onClick = {
-                                //navController.navigate("exerciseScreen/${exercise.id}")
-                            }
+                        ExerciseCard(
+                            exercise = exercise,
+                            isReorderable = isReorderable,
+                            dragState = isDragging,
+                            reorderIcon = {
+                                Icon(
+                                    modifier = Modifier.draggableHandle(),
+                                    imageVector = Icons.Filled.DragIndicator,
+                                    contentDescription = "Drag Indicator"
+                                )
+                            },
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column{
-                                    Text(exercise.exerciseName)
-
+                            ItemCounter(
+                                count = exercise.sets.toFloat(),
+                                showUI = isEditing,
+                                minusOnClick = {
                                     if (exercise.isUnilateral) {
-                                        Text("Unilateral")
-                                    }
-
-                                    ItemCounter(
-                                        count = exercise.sets.toFloat(),
-                                        minusOnClick = {
-                                            if (exercise.isUnilateral) {
-                                                if (exercise.sets > 3) {
-                                                    routineExerciseVM.updateExerciseSets(
-                                                        id = exercise.id,
-                                                        sets = exercise.sets - 2
-                                                    )
-                                                }
-                                            } else {
-                                                if (exercise.sets > 1) {
-                                                    routineExerciseVM.updateExerciseSets(
-                                                        id = exercise.id,
-                                                        sets = exercise.sets - 1
-                                                    )
-                                                }
-                                            }
-                                        },
-                                        plusOnClick = {
-                                            if (exercise.isUnilateral) {
-                                                routineExerciseVM.updateExerciseSets(
-                                                    id = exercise.id,
-                                                    sets = exercise.sets + 2
-                                                )
-                                            } else {
-                                                routineExerciseVM.updateExerciseSets(
-                                                    id = exercise.id,
-                                                    sets = exercise.sets + 1
-                                                )
-                                            }
+                                        if (exercise.sets > 3) {
+                                            routineExerciseVM.updateExerciseSets(
+                                                id = exercise.id,
+                                                sets = exercise.sets - 2
+                                            )
                                         }
-
-                                    ) { count ->
-                                        Text(
-                                            if (exercise.isUnilateral) {
-                                                "Sets: ${count.toInt() / 2} Per Side"
-                                            } else {
-                                                "Sets: ${count.toInt()}"
-                                            }
+                                    } else {
+                                        if (exercise.sets > 1) {
+                                            routineExerciseVM.updateExerciseSets(
+                                                id = exercise.id,
+                                                sets = exercise.sets - 1
+                                            )
+                                        }
+                                    }
+                                },
+                                plusOnClick = {
+                                    if (exercise.isUnilateral) {
+                                        routineExerciseVM.updateExerciseSets(
+                                            id = exercise.id,
+                                            sets = exercise.sets + 2
+                                        )
+                                    } else {
+                                        routineExerciseVM.updateExerciseSets(
+                                            id = exercise.id,
+                                            sets = exercise.sets + 1
                                         )
                                     }
-
-                                    if (exercise.reps != 0 && exercise.weight != 0f) {
-                                        Text("Reps: ${exercise.reps}")
-                                        Text("Weight: ${exercise.weight} (${exercise.uom})")
-                                    }
-
                                 }
 
-                                if (isReorderable) {
-                                    IconButton(
-                                        onClick = {},
-                                        modifier = Modifier
-                                            .draggableHandle()
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.DragIndicator,
-                                            contentDescription = "Draggable",
-                                        )
-                                    }
+                            ) {
+                                val sets = if (exercise.isUnilateral) {
+                                    exercise.sets / 2
+                                } else {
+                                    exercise.sets
+                                }
+
+                                if (exercise.reps != 0 || exercise.weight != 0f) {
+                                    val formatter = DecimalFormat("#.##")
+                                    val weight = formatter.format(exercise.weight)
+                                    Text("$sets Sets: ${exercise.reps} x $weight ${exercise.uom}")
+                                } else {
+                                    Text("$sets Sets")
                                 }
                             }
-
-
                         }
                     }
                 }
@@ -409,8 +388,10 @@ private fun SheetContent (
 @Composable
 private fun TopBar(
     name: String,
-    selected: Boolean,
-    onButtonToggle: (Boolean) -> Unit
+    reorderSelected: Boolean,
+    onReorderToggle: (Boolean) -> Unit,
+    editSelected: Boolean,
+    onEditToggle: (Boolean) -> Unit
 ) {
     CenterAlignedTopAppBar(
 
@@ -427,10 +408,17 @@ private fun TopBar(
 
         actions = {
             ToggleButton(
-                icon = Icons.Filled.Reorder,
-                selected = selected,
-                onToggle = onButtonToggle
+                icon = Icons.Filled.Edit,
+                selected = editSelected,
+                onToggle = onEditToggle
             )
+            Spacer(Modifier.padding(horizontal = 4.dp))
+            ToggleButton(
+                icon = Icons.Filled.Reorder,
+                selected = reorderSelected,
+                onToggle = onReorderToggle
+            )
+            Spacer(Modifier.padding(horizontal = 2.dp))
         }
     )
 }
